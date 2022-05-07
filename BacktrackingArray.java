@@ -5,8 +5,6 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
     private int[] arr;
     private int firstFreeIndex = 0;
 
-    // Testing to see if push is successful
-
     // TODO: implement your code here
     // Do not change the constructor's signature
     public BacktrackingArray(Stack stack, int size) {
@@ -16,7 +14,6 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
 
     @Override
     public Integer get(int index){
-
         return arr[index];
     }
 
@@ -26,20 +23,25 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
             return -1;
         }
         int index = 0;
-        while(this.arr[index] != k) {
-            index++;
+        while (index<firstFreeIndex){
+            if(this.arr[index] != k ) {
+                index++;
+            }
+            else {
+                return index;
+            }
         }
-        return index;
+        return -1;
     }
 
     @Override
     public void insert(Integer x) {
         if (!(firstFreeIndex<this.arr.length)){
-            throw new IllegalArgumentException("No space in the array!");
+            throw new IllegalArgumentException("No space in the array");
         }
 
         else {
-            int[] pushed = {0};
+            int[] pushed = {1};
             this.arr[firstFreeIndex] = x;
             this.firstFreeIndex ++;
             stack.push(pushed); //If an insertion was made - push 1 to stack to indicate insertion.
@@ -60,8 +62,7 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
             }
             else {
                 this.arr[index] = this.arr[firstFreeIndex - 1];
-                this.firstFreeIndex--; // Perhaps we should change FFI to be at the deleted index? - No we shouldn't
-                // See convo with Nofar for explanation
+                this.firstFreeIndex--;
             }
         }
     }
@@ -99,7 +100,7 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
         int diff = Math.abs(this.arr[0] - this.arr[index]);
         int next = 0;
 
-        if (this.maximum() == index) {
+        if (maximum() == index) {
             throw new IllegalArgumentException("Max has no successor");
         } else {
             for (int i = 0; i < this.firstFreeIndex; i++) {
@@ -126,10 +127,13 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
     @Override
     public Integer predecessor(Integer index) {
         int pred = 0;
+        if (minimum() == index) {
+            throw new IllegalArgumentException("Min has no predecessor");
+        }
         for (int i = 0; i < firstFreeIndex; i++) {
-            if (Math.abs(arr[i]-arr[index]) < Math.abs(arr[pred]-arr[index]) && (arr[i]<arr[index]));
-            // Note the warning- If has empty body
-            pred = i;
+            if (Math.abs(arr[i]-arr[index]) < Math.abs(arr[pred]-arr[index]) && (arr[i]<arr[index])) {
+                pred = i;
+            }
         }
         if (arr[index] - arr[pred] > 0){
             return pred;
@@ -166,7 +170,7 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
         for (int i = 0; i < this.firstFreeIndex; i++) {
             s += arr[i] + " ";
         }
-        System.out.println(s);
+        System.out.println(s);;
     }
 
 }
