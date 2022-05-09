@@ -13,16 +13,16 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
         this.stack = stack;
         arr = new int[size];
     }
-    
+
     @Override
     public Integer get(int index){
-    	return arr[index];
+        return arr[index];
     }
 
     @Override
     public Integer search(int k) {
         int index = binarySearch(arr, k, this.firstFreeIndex);
-    	return index;
+        return index;
     }
 
     int binarySearch(int arr[], int x, int FFI)
@@ -39,7 +39,7 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
             if (arr[m] < x)
                 l = m + 1;
 
-            // If x is smaller, ignore right half
+                // If x is smaller, ignore right half
             else
                 r = m - 1;
         }
@@ -55,14 +55,14 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
             throw new IllegalArgumentException("can't insert to a full array");
         }
         int index = 0;
-        while(arr[index]<x){
+        while(arr[index]<x && index<this.firstFreeIndex){
             index++;
         }
-        for (int i = index+1; i <firstFreeIndex ; i++) {
+        firstFreeIndex++;
+        for (int i = firstFreeIndex-1; i>index ; i--) {
             arr[i] = arr[i-1];
         }
         arr[index] = x;
-        firstFreeIndex++;
         int[] pushed = {1,index};
         stack.push(pushed);
     }
@@ -85,7 +85,7 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
         if(this.firstFreeIndex==0){
             throw new IllegalArgumentException("can't find a minimum in an empty array");
         }
-    	return arr[0]; // Minimum is at index 0 because array is sorted
+        return 0; // Minimum is at index 0 because array is sorted
     }
 
     @Override
@@ -93,7 +93,7 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
         if(arr.length==0){
             throw new IllegalArgumentException("can't find a maximum in an empty array");
         }
-        return arr[this.firstFreeIndex-1]; // Max is at last index because array is sorted
+        return this.firstFreeIndex-1; // Max is at last index because array is sorted
     }
 
     @Override
@@ -101,7 +101,7 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
         if(index>=this.firstFreeIndex-1){
             throw new IllegalArgumentException("has no successor");
         }
-    	return arr[index+1]; // The array is sorted and the successor would be at index+1
+        return index+1; // The array is sorted and the successor would be at index+1
     }
 
     @Override
@@ -109,7 +109,7 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
         if(index==0 || index>this.firstFreeIndex){
             throw new IllegalArgumentException("has no predecessor");
         }
-        return arr[index-1]; // The array is sorted and the predecessor would be at index+1
+        return index-1; // The array is sorted and the predecessor would be at index+1
     }
 
     @Override
@@ -117,28 +117,54 @@ public class BacktrackingSortedArray implements Array<Integer>, Backtrack {
         if(!stack.isEmpty()) {
             int[] popped = (int[]) stack.pop();
             if (popped[0]==0){
-                this.insert(popped[1]);
+                this.insertBT(popped[1]);
             }
             else {
-                this.delete(popped[1]);
+                this.deleteBT(popped[1]);
             }
         }
     }
 
+    public void insertBT(Integer x) {
+        if(this.firstFreeIndex == this.arr.length){
+            throw new IllegalArgumentException("can't insert to a full array");
+        }
+        int index = 0;
+        while(arr[index]<x && index<this.firstFreeIndex){
+            index++;
+        }
+        firstFreeIndex++;
+        for (int i = firstFreeIndex-1; i>index ; i--) {
+            arr[i] = arr[i-1];
+        }
+        arr[index] = x;
+    }
+
+
+    public void deleteBT(Integer index) {
+        if(firstFreeIndex==0){
+            throw new IllegalArgumentException("can't delete from an empty array");
+        }
+        for (int i = index ; i <firstFreeIndex-1 ; i++) {
+            this.arr[i] = this.arr[i+1];
+        }
+        firstFreeIndex--;
+    }
+
     @Override
     public void retrack() {
-		/////////////////////////////////////
-		// Do not implement anything here! //
-		/////////////////////////////////////
+        /////////////////////////////////////
+        // Do not implement anything here! //
+        /////////////////////////////////////
     }
 
     @Override
     public void print() {
         String s = "";
-        for (int i = 0; i < arr.length; i++) {
+        for (int i = 0; i < this.firstFreeIndex; i++) {
             s += arr[i] + " ";
         }
         System.out.println(s);;
     }
-    
+
 }

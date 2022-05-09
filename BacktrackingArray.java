@@ -149,7 +149,7 @@ public class BacktrackingArray implements Array<Integer>, Backtrack {
             if (popped[0] == 1){
                 firstFreeIndex--;
             }
-            else {
+            else { // backtracki
                 this.arr[firstFreeIndex] = this.arr[popped[1]];
                 this.arr[popped[1]] = popped[2];
                 firstFreeIndex++;

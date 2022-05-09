@@ -6,11 +6,22 @@ public class BacktrackingBST implements Backtrack, ADTSet<BacktrackingBST.Node> 
     private Stack stack;
     private Stack redoStack;
     private BacktrackingBST.Node root = null;
-
-    // Done - min, max, pred, succ, search, insert, delete, print;
-    // To do - backtrack, retrack;
+    private int backtracks = 0;
 
 
+    /*
+Left to resolve
+ Issue 3 -
+    - Backtracking the deletion of a second consecutive root deletes one of the roots -
+    - See line 176 for a further explanation suggestion.
+ Issue 4 -
+    - backtracking the deletion of a root can insert the old root as a leaf (and not where it was) - line 140
+
+
+ Left to implement
+    - Make sure we return nulls and handle all special cases
+    - It appears that retrack functions as expected.
+*/
 
 
     // Do not change the constructor's signature
@@ -27,94 +38,73 @@ public class BacktrackingBST implements Backtrack, ADTSet<BacktrackingBST.Node> 
     }
 
     public Node search(int k) {
-        if (root.getKey()==k){
-            return root;
+        if (root != null) {
+            return root.search(k);
         }
-        else if ( (root.getKey()<k && k<root.right.getKey()) || (root.getKey()>k && k>root.left.getKey()) ){
-            return null;
-        }
-        else if (root.getKey()>k){
-            return root.left.search(k);
-        }
-        else {
-            return root.right.search(k);
-        }
+        return null;
     }
 
     public void insert(Node node) {
+        backtracks=0;
         stack.push(node);
-       if(root != null){
-           root.insert(node);
-       }
+        if (root != null) {
+            root.insert(node);
+        }
+        else {
+            root = node;
+        }
     }
 
     public void delete(Node node) {
+        backtracks=0;
+        if(node.left!= null && node.right != null){ // if the removed node has 2 children - add its successor.
+            stack.push(node.right.minimum());
+            // We need a second pop - the minimum node will be inserted
+            // in place of the deleted item
+        }
         stack.push(node);
-        if(node.left==null && node.right==null){
-            if(node.parent.getKey() > node.getKey()){
-                node.parent.left = null;
-            }
-            else {
-                node.parent.right = null;
-            }
-        }
-        else if(node.left==null){
-            node = node.right;
-            node.right = null;
-        }
-        else if(node.right==null) {
-            node = node.left;
-            node.left = null;
-        }
-        else {
-            node = node.right.minimum();
-            node.right.minimum().parent.left = null; /////////////////can be done in a smarter way?
+        if(root != null){
+            root = root.delete(node);
         }
     }
 
     public Node minimum() {
-        if (root.left == null){
-            return root;
+        if (root!= null) {
+            return root.minimum();
         }
-        else {
-            return root.left.minimum();
-        }
+        return null;
     }
 
     public Node maximum() {
-        if (root.right == null){
-            return root;
+        if (root!= null) {
+            return root.maximum();
         }
-        else {
-            return root.right.maximum();
-        }
+        return null;
     }
 
     public Node successor(Node node) {
         // Does it return null if node has no successor??
         // I believe it does - needs to be confirmed
-        if (node.right != null){
+        if (node.right != null) {
             return node.right.minimum();
         }
-        else {
-            Node y = node.parent;
-            while (y != null && node==y.right){
-                node = y;
-                y = y.parent;
-            }
-            return y;
+        Node y = node.parent;
+        while (y != null && node == y.right) {
+            node = y;
+            y = y.parent;
         }
+        return y;
+
     }
 
     public Node predecessor(Node node) {
         // Does it return null if node has no predecessor??
         // I believe it does - needs to be confirmed
-        if (node.left != null){
+        if (node.left != null) {
             return node.left.maximum();
-        }
-        else {
+        } else {
             Node y = node.parent;
-            while (y != null && node==y.left){
+            while (y != null && node == y.left) {
                 node = y;
                 y = y.parent;
             }
@@ -124,372 +114,133 @@ public class BacktrackingBST implements Backtrack, ADTSet<BacktrackingBST.Node> 
 
     @Override
     public void backtrack() {
-        // TODO: implement your code here
+        backtracks++;
+        if(!stack.isEmpty()) {
+            Node popped = (Node) this.stack.pop();
+            this.redoStack.push(popped);
+            if ( this.search(popped.getKey()) != null ) { // If an item was inserted - delete it through its parent
+
+
+                    popped.parent.delete(popped);
+            }
+            else { // If an item was deleted - insert the item
+                if (popped.left != null && popped.right != null) { // Node has 2 children - Case 3 of delete
+                    Node poppedSecond = (Node) stack.pop();
+                    // We need a second pop - the minimum node will be inserted
+                    // in place of the deleted item
+                    // poppedSecond.parent.left = poppedSecond; -Probably redundant and therefore commented out
+                    if (popped.wasLeftChild()) { //checking if is left child
+                        popped.parent.left = popped;
+                    }
+                    else if (popped.wasRightChild()){ //is right child
+                        popped.parent.right = popped;
+                    }
+                    else { // root was deleted
+                        root = popped;
+                        root.left.parent = popped;
+                        root.right.parent = popped;
+                    }
+                    poppedSecond.right = null;
+                    poppedSecond.left = null;
+                    popped.right.insert(poppedSecond); // Issue 4 - insert results in insertion as a leaf
+                }
+
+                else if (popped.right != null) { // Case 2 of delete - node has right child
+                    if (popped.wasLeftChild()) { //checking if it is a left child
+                        popped.parent.left = popped; // I am now the left child of my parent
+                        popped.right.parent = popped; // I am now the parent of my right child
+                    }
+
+                    else if (popped.wasRightChild()) { // checking if node is rightChild
+                        popped.parent.right = popped; // I am now the right child of my parent
+                        popped.right.parent = popped; // I am now the parent of my right child
+                    }
+
+                    else { // checking if popped was root
+                        root = popped;
+                        root.right.parent = root;
+                    }
+                }
+
+                else if (popped.left != null) { // Case 2 of delete - node has left child
+                    if(popped.wasLeftChild()){ //checking if it is a left child
+                        popped.parent.left = popped;// I am now the right child of my parent
+                        popped.left.parent = popped;// I am now the parent of my right child
+                    }
+                    else if (popped.wasRightChild()){ // is rightChild
+                        popped.parent.right = popped; // I am now the right child of my parent
+                        popped.left.parent = popped; // I am now the parent of my right child
+                    }
+                    else { // reinserting as root
+                        // Probably no longer relevant
+                        //popped.right = null;
+                        //popped.left = null;
+                        //this.insert(popped);
+
+
+                        // This is the root (no pun intended) of issue 3 - we need to move the current root
+                        // to the left or to the right
+                        // Do we need to write a special case - check where to enter?
+                        // Seems dumb...
+                        root = popped;
+                        root.left.parent = root;
+                    }
+                }
+
+                else { // Case 1 - node has no children
+                    if(popped.wasLeftChild()){ //checking if it is a left child
+                        popped.parent.left = popped;// I am now the right child of my parent
+                    }
+                    else if (popped.wasRightChild()){ // is rightChild
+                        popped.parent.right = popped; // I am now the right child of my parent
+                    }
+                    else {
+                        root = popped;
+                    }
+                }
+            }
+
+
+        }
     }
 
     @Override
-    public void retrack() {
-        // TODO: implement your code here
+    public void retrack () {
+        int b = this.backtracks-1;
+        if (!redoStack.isEmpty() && backtracks>0) {
+            Node popped = (Node) redoStack.pop();
+            this.stack.push(popped);
+            if (this.search(popped.getKey()) != null) {
+                this.delete(popped);
+            } else {
+                this.insert(popped);
+            }
+            this.backtracks = b;
+        }
     }
 
-    public void printPreOrder(){
-       if(root != null){
-           root.printPreOrder();
-       }
+
+    public void printPreOrder () {
+        if (root != null) {
+            root.printPreOrder();
+        }
+        else{System.out.println("null");}
     }
 
     @Override
-    public void print() {
+    public void print () {
         printPreOrder();
     }
 
     public static class Node {
 
-//        public String toString() {
-//            if (root!=null) {
-//                System.out.println("***************************");
-//                return root.toString2();
-//            }
-//            else
-//                return "Empty Tree";
-//        }
-//	**************************
-
-//        and add the function to the Node class:
-
-//        public String toString() {
-//            return ""+this.getKey()+"";
-//        }
-//        public String toString2() {
-//            String d="";
-//            return toString2(d);
-//        }
-//
-//        private String toString2(String d) {
-//            String s="";
-//            if(right!=null)
-//                s=s+right.toString2(d+"  ");
-//            s=s+d+getKey()+"\n";
-//            if(left!=null)
-//                s=s+left.toString2(d+"  ");
-//            return s;
-//        }
-//
-//
-//	 */
-
-        public static void main(String[] args) {
-            check4l1();
-            //check4l2();
-            //check4l3();
-            //check4l32();
-
-        }
-        public static void check4l1() {
-            System.out.println("check part 4 Q1:");
-            Stack s1= new Stack();
-            BacktrackingArray array=new BacktrackingArray(s1, 15);
-            array.backtrack();
-            array.insert(5);
-            array.insert(16);
-            array.insert(45);
-            array.insert(147);
-            array.insert(2);
-            System.out.println("2|"+array.search(45));
-            array.delete(2);
-            System.out.println("-1|"+array.search(45));
-            array.backtrack();
-            System.out.println("2|"+array.search(45));
-            array.backtrack();
-            System.out.print("5 16 45 147|");
-            array.print();
-            array.insert(78);
-            array.backtrack();
-            System.out.println("-1|"+array.search(78));
-            System.out.println("2|"+array.predecessor(3));
-            array.insert(14);
-            array.insert(9);
-            System.out.println("5|"+array.predecessor(4));
-            array.backtrack();
-            System.out.println("0|"+array.predecessor(4));
-            array.insert(1);
-            System.out.println("5|"+array.minimum());
-            System.out.println("3|"+array.maximum());
-            System.out.println("1|"+array.successor(4));
-            System.out.println("*************************************");
-
-            //eroor checks:
-//            System.out.println(array.predecessor(5));
-//            System.out.println(array.successor(3));
-            array.delete(13);
-
-            for (int i=0; i<=15; i++)
-                array.insert(i);
-        }
-
-        public static void check4l2() {
-            System.out.println("check part 4 Q2:");
-            Stack s1= new Stack();
-            BacktrackingSortedArray array=new BacktrackingSortedArray(s1, 15);
-            array.backtrack();
-            array.insert(5);
-            array.insert(16);
-            array.insert(45);
-            array.insert(147);
-            array.insert(2);
-            System.out.print("2 5 16 45 147|");
-            array.print();
-
-            System.out.println("3|"+array.search(45));
-            array.delete(3);
-            System.out.println("-1|"+array.search(45));
-            array.backtrack();
-            System.out.println("3|"+array.search(45));
-
-            array.backtrack();
-            System.out.print("5 16 45 147|");
-            array.print();
-            array.backtrack();
-            System.out.print("5 16 45 |");
-            array.print();
-
-            array.insert(38);
-            System.out.print("5 16 38 45|");
-            array.print();
-
-            array.backtrack();
-            System.out.println("-1|"+array.search(38));
-
-            System.out.println("1|"+array.predecessor(2));
-            array.insert(14);
-            array.insert(9);
-            System.out.print("5 9 14 16 45|");
-            array.print();
-
-            System.out.println("3|"+array.successor(2));
-            array.backtrack();
-            System.out.println("0|"+array.predecessor(1));
-            array.insert(1);
-            System.out.println("0|"+array.minimum());
-            System.out.println("4|"+array.maximum());
-            array.backtrack();
-            array.backtrack();
-            array.backtrack();
-            array.backtrack();
-            System.out.print("5|");
-            array.print();
-            System.out.println("-1|"+array.search(45));
-            System.out.println("*************************************");
-
-            //eroor checks:
-            //System.out.println(array.predecessor(0));
-            //System.out.println(array.successor(4));
-            //array.delete(13);
-
-            //for (int i=0; i<=15; i++)
-            //	array.insert(i);
-
-
-
-        }
-        public static void check4l3() {
-            System.out.println("check part 4 Q3:");
-            Stack s1= new Stack();
-            Stack s2= new Stack();
-            BacktrackingBST tree=new BacktrackingBST(s1,s2);
-            tree.backtrack();
-            BacktrackingBST.Node n120=new BacktrackingBST.Node(120,null);
-            BacktrackingBST.Node n100=new BacktrackingBST.Node(100,null);
-            BacktrackingBST.Node n13=new BacktrackingBST.Node(13,null);
-            BacktrackingBST.Node n56=new BacktrackingBST.Node(56,null);
-            BacktrackingBST.Node n87=new BacktrackingBST.Node(87,null);
-            BacktrackingBST.Node n230=new BacktrackingBST.Node(230,null);
-            BacktrackingBST.Node n40=new BacktrackingBST.Node(40,null);
-            BacktrackingBST.Node n22=new BacktrackingBST.Node(22,null);
-            BacktrackingBST.Node n80=new BacktrackingBST.Node(80,null);
-
-            BacktrackingBST.Node n240=new BacktrackingBST.Node(240,null);
-
-            tree.insert(n120);
-            tree.insert(n100);
-            tree.insert(n13);
-            tree.insert(n56);
-            tree.insert(n87);
-            tree.insert(n230);
-            tree.insert(n40);
-            tree.insert(n22);
-            tree.insert(n80);
-
-
-            System.out.println("13|"+tree.minimum());
-            System.out.println("230|"+tree.maximum());
-            System.out.println("null|"+tree.search(47));
-            System.out.println("87|"+tree.search(87));
-            System.out.println("87|"+tree.successor(n80));
-            System.out.println("230|"+tree.successor(n120));
-            System.out.println("22|"+tree.successor(n13));
-            System.out.println("13|"+tree.predecessor(n22));
-            System.out.println("100|"+tree.predecessor(n120));
-
-            //error check
-            //tree.insert(null);
-            //System.out.println("error|"+tree.successor(n230));
-            //System.out.println("error|"+tree.predecessor(n13));
-
-
-            System.out.println("the tree at beggining");
-            System.out.println(tree.toString());
-            System.out.println("***************************");
-            tree.backtrack();
-            System.out.println("the tree after the backtracking adding 80");
-            System.out.println(tree.toString());
-            tree.insert(n80);
-            System.out.println("the tree after inserting 80 back");
-            System.out.println(tree.toString());
-            tree.delete(n13);
-            tree.delete(n22);
-            tree.delete(n56);
-            System.out.println("the tree after deliting 13, 22, 56:");
-            System.out.println(tree.toString());
-            System.out.println("the tree after backtracking the delete of 56 (with 56):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after after backtracking the delete of 22 (with 22):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after after backtracking the delete of 13 (supposed to look like the original tree):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            tree.delete(n120);
-            System.out.println("the tree after deleting the root (120)");
-            System.out.println(tree.toString());
-            tree.delete(n230);
-            System.out.println("the tree after deleting the root (230)");
-            System.out.println(tree.toString());
-            tree.backtrack();
-            System.out.println("the tree after bringing back the root (230)");
-            System.out.println(tree.toString());
-            tree.backtrack();
-            System.out.println("the tree after bringing back the root (120)");
-            System.out.println(tree.toString());
-
-            System.out.println("*************************************");
-        }
-
-        public static void check4l32() {
-            System.out.println("check part 4 Q3:");
-            Stack s1= new Stack();
-            Stack s2= new Stack();
-            BacktrackingBST tree=new BacktrackingBST(s1,s2);
-            tree.backtrack();
-            BacktrackingBST.Node n120=new BacktrackingBST.Node(120,null);
-            BacktrackingBST.Node n100=new BacktrackingBST.Node(100,null);
-            BacktrackingBST.Node n13=new BacktrackingBST.Node(13,null);
-            BacktrackingBST.Node n56=new BacktrackingBST.Node(56,null);
-            BacktrackingBST.Node n87=new BacktrackingBST.Node(87,null);
-            BacktrackingBST.Node n230=new BacktrackingBST.Node(230,null);
-            BacktrackingBST.Node n40=new BacktrackingBST.Node(40,null);
-            BacktrackingBST.Node n22=new BacktrackingBST.Node(22,null);
-            BacktrackingBST.Node n80=new BacktrackingBST.Node(80,null);
-            BacktrackingBST.Node n250=new BacktrackingBST.Node(250,null);
-
-            tree.insert(n40);
-            tree.insert(n120);
-            tree.insert(n56);
-            tree.insert(n13);
-            tree.insert(n22);
-            tree.insert(n87);
-            tree.insert(n250);
-            tree.insert(n100);
-            tree.insert(n230);
-
-            tree.insert(n80);
-
-
-            System.out.println("13|"+tree.minimum());
-            System.out.println("230|"+tree.maximum());
-            System.out.println("null|"+tree.search(47));
-            System.out.println("87|"+tree.search(87));
-            System.out.println("87|"+tree.successor(n80));
-            System.out.println("230|"+tree.successor(n120));
-            System.out.println("22|"+tree.successor(n13));
-            System.out.println("13|"+tree.predecessor(n22));
-            System.out.println("100|"+tree.predecessor(n120));
-
-            //error check
-            //tree.insert(null);
-            //System.out.println("error|"+tree.successor(n230));
-            //System.out.println("error|"+tree.predecessor(n13));
-
-
-            System.out.println("the tree at beggining");
-            System.out.println(tree.toString());
-            System.out.println("***************************");
-            System.out.println("the tree after the backtracking adding 80");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after inserting 80 back");
-            tree.insert(n80);
-            System.out.println(tree.toString());
-            System.out.println("the tree after deletenig 80 back");
-            tree.delete(n80);
-            System.out.println(tree.toString());
-            System.out.println("the tree after the backtracking deliting 80");
-            tree.backtrack();
-            System.out.println(tree.toString());
-
-
-
-            tree.delete(n13);
-            tree.delete(n22);
-            tree.delete(n120);
-            System.out.println("the tree after deliting 13, 22, 120:");
-            System.out.println(tree.toString());
-            System.out.println("the tree after backtracking the delete of 120 (with 120):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after after backtracking the delete of 22 (with 22):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after after backtracking the delete of 13 (supposed to look like the original tree):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-
-            tree.delete(n120);
-            System.out.println("the tree after deliting 120:");
-            System.out.println(tree.toString());
-            System.out.println("the tree after backtracking the delete of 120 (with 120):");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after deleting the root (40)");
-            tree.delete(n40);
-            System.out.println(tree.toString());
-            System.out.println("the tree after deleting the root (56)");
-            tree.delete(n56);
-            System.out.println(tree.toString());
-            System.out.println("the tree after bringing back the root (56)");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("the tree after bringing back the root (40)");
-            tree.backtrack();
-            System.out.println(tree.toString());
-            System.out.println("13|"+n13);
-            System.out.println("40|"+n13.parent);
-            System.out.println("40|"+n40);
-            System.out.println("56|"+n56);
-            System.out.println("the tree after deliting 13");
-            tree.delete(n13);
-            System.out.println(tree.toString());
-            System.out.println("*************************************");
-
-        }
-
 
         // These fields are public for grading purposes. By coding conventions and best practice they should be private.
         public BacktrackingBST.Node left;
         public BacktrackingBST.Node right;
-
         private BacktrackingBST.Node parent;
+
+
         private int key;
         private Object value;
 
@@ -506,96 +257,196 @@ public class BacktrackingBST implements Backtrack, ADTSet<BacktrackingBST.Node> 
             return value;
         }
 
-        public Node search(int k){
-            if (this.key == k || this == null){
+        public Node search(int k) {
+            if (this.key == k || this == null) {
                 return this;
             }
-            else if ( (this.getKey()<k && k<this.right.getKey()) || (this.getKey()>k && k>this.left.getKey()) ){
-                return null;
-            }
-            else if (this.key>k){
-                return this.left.search(k);
+            //else if ( (this.getKey()<k && k<this.right.getKey()) || (this.getKey()>k && k>this.left.getKey()) ){
+            //  return null;
+            //}
+            else if (this.key > k) {
+                if(left!=null) {
+                    return this.left.search(k);
+                }
+                else{
+                    return null;
+                }
             }
             else {
-                return this.right.search(k);
+                if(right!=null) {
+                    return this.right.search(k);
+                }
+                return null;
             }
 
         }
 
         public void insert(Node node) {
-
-            if(key < node.getKey()){
-                if(left!=null) {
-                    left.insert(node);
+            if (key > node.getKey()) {
+                if (left != null) {
+                    this.left.insert(node);
                 }
                 else {
-                    left = node;
+                    node.parent = this;
+                    this.left = node;
                 }
             }
             else {
-                if(right!=null) {
+                if (right != null) {
                     right.insert(node);
                 }
                 else {
-                    right = node;
+                    node.parent = this;
+                    this.right = node;
                 }
             }
         }
-//
-        public void delete(Node node) {
-            if(left==null && right==null){
-                if(parent.getKey() > getKey()){
-                    parent.left = null;
+
+        //
+        public Node delete(Node node) {
+            if (node.left == null && node.right == null) { // Case 1 - node has no children
+                if (node.isLeftChild()) { // Parent is bigger than me -> I am a left child
+                    node.parent.left = null;
+                }
+                else if (node.isRightChild()){ // is right child
+                    node.parent.right = null;
                 }
                 else {
-                    parent.right = null;
+                    return null;
                 }
             }
-            else if(left==null){
-                parent.right = this.right;
+            else if (node.left == null) { // Case 2 - node has one child
+                if(node.isLeftChild()){
+                    node.parent.left = node.right;
+                    node.right.parent = node.parent;
+                }
+                else if (node.isRightChild()){
+                    node.parent.left = node.right;
+                    node.right.parent = node.parent; // added late - set my parent as the parent of mt right child
+                }
 
+                else { //we want to delete the root
+                    if (node.left != null){ //node has one left child
+                    return node.left;
+                    }
+                    else if (node.right != null) { // node has 1 right child
+                        return node.right;
+                    }
+                }
+            }
 
+            else if (node.right == null) { // Case 2 - node has one child
+                if(node.isLeftChild()){
+                    node.parent.left = node.right;
+                    node.left.parent = node.parent;
+                }
+                else if (node.isRightChild()){
+                    node.parent.left = node.right;
+                    node.left.parent = node.parent; // added late - set my parent as the parent of my right child
+                }
+                else { // is root
+                    if (node.left != null){ //node has a left child
+                        return node.left;
+                    }
+                    else if (node.right != null) { // node has 1 right child
+                        return node.right;
+                    }
+                }
             }
-            else if(node.right==null) {
-                parent.left = this.left;
+
+            else { // Case 3 - node has 2 children
+                Node min = node.right.minimum();
+                node.delete(min);
+                min.right = node.right;
+                min.parent = node.parent; // here lies the problem of deleting 120 -
+                // The parent of 230 is defined to be null (as 120 is the root)
+                min.left = node.left;
+                if (min.hasParent()){ // hence
+                    if (min.parent.getKey() > min.getKey()){
+                        node.parent.left = min;
+                    }
+                    else if (min.parent.getKey() < min.getKey()){
+                        node.parent.right = min;
+                    }
+                }
+                else {
+                    return min;
+                }
             }
-            else {
-                this.key = right.minimum().getKey();
-                this.value = right.minimum().getValue();
-                right.delete(right.minimum());
-            }
-        }
+            return this;
+        } // when backtracking the insertion of an item the wrong item is deleted - FIXED
 
         public Node minimum() {
-            if (this.left == null){
+            if (this.left == null) {
                 return this;
-            }
-            else {
+            } else {
                 return this.left.minimum();
             }
         }
 
+        @Override
+        public String toString() {
+            return "" + getKey();
+        }
+
         public Node maximum() {
-            if (this.right == null){
+            if (this.right == null) {
                 return this;
-            }
-            else {
-                return this.left.maximum();
+            } else {
+                return this.right.maximum();
             }
         }
 
-        public void printPreOrder(){
-            System.out.println(key);
-            if(left != null){
+        public void printPreOrder() {
+            System.out.print(key+" ");
+            if (left != null) {
                 left.printPreOrder();
             }
-            if(right != null){
+            if (right != null) {
                 right.printPreOrder();
             }
         }
+
+        public boolean hasParent(){
+            return this.parent != null;
+        }
+
+        public boolean isRightChild(){
+            if (this.parent != null) {
+                if (this.parent.right != null) {
+                    return this.getKey() == this.parent.right.getKey();
+                }
+            }
+            return false;
+        }
+
+        public boolean wasLeftChild() {
+            if (this.parent != null) {
+                return this.getKey() < this.parent.getKey();
+            }
+            return false;
+        }
+
+        public boolean wasRightChild() {
+            if (this.parent != null) {
+                    return this.getKey() > this.parent.getKey();
+                }
+            return false;
+        }
+
+        public boolean isLeftChild(){
+            if (this.parent != null) {
+                if (this.parent.left != null) {
+                    return this.getKey() == this.parent.left.getKey();
+                }
+            }
+            return false;
+        }
+
 
 
 
     }
 
 }
+
